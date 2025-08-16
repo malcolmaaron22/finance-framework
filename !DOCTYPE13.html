@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Café Finance Framework (MYR) — Tooltips & CSV</title>
+  <style>
+    /* * Global CSS Variables for a clean, consistent theme.
+     * The colors below have been updated to the user's new HEX codes.
+     */
+    :root {
+      --bg: #f6f7f9; --panel:#ffffff; --card:#ffffff; --text:#0f172a; --muted:#475569; --border:#e2e8f0; --accent:#2563eb; --accent-2:#0ea5e9; --shadow:0 10px 30px rgba(2,6,23,.08); --radius:16px;
+      /* Updated colors for financial metrics based on user's request */
+      --rev:#00d9ff; --opex:#fbbf24; --net:#10b981; --net-neg:#f43f5e; --tax:#ef4444; --reinvest:#8b5cf6; --dist:#a3e635;
+      /* Other status colors */
+      --ok:#16a34a; --paused:#ef4444; --f1:#60a5fa; --f2:#f472b6; --f3:#a78bfa;
+    }
+    @media (prefers-color-scheme: dark){:root{--bg:#0b1220;--panel:#0f172a;--card:#111a2e;--text:#e6edf7;--muted:#94a3b8;--border:#1f2a44;--shadow:0 10px 30px rgba(0,0,0,.4)}}
+    *{box-sizing:border-box} html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Inter,"Helvetica Neue",Arial}
+
+    /* Mobile-First Styles */
+    .app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+    }
+    aside.panel {
+      padding: 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+    section.content {
+      padding: 16px;
+      flex: 1;
+    }
+    .panel-toggle {
+        display: block;
+        background: var(--card);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
+        padding: 8px 12px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+    .panel-toggle::before {
+        content: 'Show Inputs';
+    }
+    .panel-toggle.active::before {
+        content: 'Hide Inputs';
+    }
+    aside.panel.hidden {
+        display: none;
+    }
+
+    .brand{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(37, 99, 235, 0.18);}
+    .brand h1{font-size:16px;margin:0}
+    .sub{color:var(--muted);font-size:12px;margin:0 0 16px}
+    .group{border:1px dashed var(--border);border-radius:14px;padding:12px;margin:12px 0;background:rgba(255, 255, 255, 0.08);}
+    .group h2{font-size:12px;margin:0 0 8px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+    label.row{display:flex;flex-direction:column;gap:6px;padding:6px 0}
+    .row-inputs {display: grid;grid-template-columns: 1fr 120px;align-items: center;gap: 6px;}
+    .row small{color:var(--muted);font-size:11px;}
+    input[type=number],input[type=text],input[type=range]{width:100%}
+    input[type=number]{appearance:textfield;-moz-appearance:textfield;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);outline:none;box-shadow:inset 0 0 0 1px transparent}
+    input[type=number]:focus{box-shadow:inset 0 0 0 1px var(--accent);border-color:rgba(37, 99, 235, 0.4);}
+    .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer}.switch input{display:none}.track{width:36px;height:20px;background:#cbd5e1;border-radius:999px;position:relative;transition:.2s ease}.thumb{position:absolute;top:3px;left:3px;width:14px;height:14px;background:#fff;border-radius:50%;transition:.2s ease;box-shadow:0 1px 2px rgba(0,0,0,.2)} .switch input:checked+.track{background:var(--accent)} .switch input:checked+.track .thumb{left:19px}
+    .founder-grid{display:grid;grid-template-columns:1fr 50px;gap:6px 8px;align-items:center}.founder-grid .name{font-weight:600}.founder-grid input[type=range]{grid-column:1/-1}
+    .total{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px}.total strong{color:var(--text)}
+    .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    button{border:1px solid var(--border);background:var(--card);color:var(--text);padding:8px 10px;border-radius:10px;cursor:pointer;box-shadow:var(--shadow)} button.primary{background:var(--accent);color:#fff;border-color:rgba(37, 99, 235, 0.5);} button.icon{display:flex;align-items:center;gap:6px}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;min-height:70px}
+    .kpi{display:flex;flex-direction:column;gap:3px}.kpi .label{color:var(--muted);font-size:11px;display:flex;align-items:center;gap:6px}.kpi .value{font-size:18px;font-weight:700;letter-spacing:.3px}
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:999px;font-weight:600;font-size:11px}
+    .chip.ok{background:rgba(22, 163, 74, 0.14);color:var(--ok);border:1px solid rgba(22, 163, 74, 0.4);}
+    .chip.paused{background:rgba(239, 68, 68, 0.14);color:var(--paused);border:1px solid rgba(239, 68, 68, 0.4);}
+    .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+    .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}.legend .item{display:flex;align-items:center;gap:6px;font-size:11px}.swatch{width:10px;height:10px;border-radius:3px}
+    .stack{width:100%;height:30px;background:#e5e7eb;border-radius:999px;overflow:hidden;border:1px solid var(--border)} @media (prefers-color-scheme: dark){.stack{background:#0f172a}}
+    .seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;white-space:nowrap}.seg.tax{background:var(--tax)}.seg.reinvest{background:var(--reinvest)}.seg.dist{background:var(--dist)}
+    .gauge{width:100%;height:10px;border-radius:999px;background:#e5e7eb;overflow:hidden;border:1px solid var(--border)} @media (prefers-color-scheme: dark){.gauge{background:#0f172a}} .gauge .fill{height:100%;background:var(--ok);width:50%}
+    .gauge .fill.alert { background: var(--paused); }
+    .donut-wrap{display:grid;grid-template-columns:1fr;gap:12px;align-items:center;text-align:center}
+    svg.donut{width:160px;height:160px} .center-text{font:700 12px/1.2 system-ui;fill:var(--text);text-anchor:middle;dominant-baseline:middle}
+    .muted{color:var(--muted)}
+    
+    /* Mobile-first grid spanning, all cards get full width */
+    .span-3, .span-4, .span-6, .span-8, .span-12 {
+      grid-column: span 12;
+    }
+
+    /* Tablet and larger screens */
+    @media (min-width: 600px) {
+      .span-3, .span-4 {
+        grid-column: span 6;
+      }
+      .donut-wrap {
+        grid-template-columns: 200px 1fr;
+        text-align: left;
+      }
+      svg.donut{width:200px;height:200px}
+      .center-text{font:700 14px/1.2 system-ui}
+      .info .tip{min-width:220px;max-width:320px}
+    }
+
+    /* Laptop and larger screens */
+    @media (min-width: 960px) {
+      .app {
+        display: grid;
+        grid-template-columns: 400px 1fr;
+        min-height: 100dvh;
+      }
+      aside.panel {
+        position:sticky;
+        top:0;
+        align-self:start;
+        height:100dvh;
+        overflow:auto;
+        padding:20px;
+        border-right:1px solid var(--border);
+      }
+      section.content {
+        padding: 24px;
+      }
+      .panel-toggle {
+          display: none;
+      }
+      .panel.hidden {
+          display: block;
+      }
+      .brand{gap:10px;margin-bottom:12px}
+      .brand .dot{width:10px;height:10px;box-shadow:0 0 0 6px rgba(37, 99, 235, 0.18);}
+      .brand h1{font-size:18px}
+      .sub{margin:0 0 18px}
+      .group{padding:14px;margin:14px 0}
+      .group h2{font-size:13px;margin:0 0 10px}
+      label.row{gap:8px;padding:8px 0}
+      .row-inputs {grid-template-columns: 1fr 160px;gap: 8px;}
+      .row small{font-size:12px;}
+      input[type=number]{padding:10px 12px;border-radius:10px}
+      .switch .track{width:40px;height:22px}.switch .thumb{width:16px;height:16px} .switch input:checked+.track .thumb{left:21px}
+      .founder-grid{grid-template-columns:1fr 60px;gap:8px 10px}.founder-grid input[type=range]{grid-column:1/-1}
+      .total{font-size:12px;margin-top:6px}
+      .btns{gap:8px;margin-top:10px}
+      button{padding:10px 12px;border-radius:12px} button.icon{gap:8px}
+      .grid{gap:16px}
+      .card{padding:16px;min-height:80px}
+      .kpi .label{font-size:12px;gap:8px}.kpi .value{font-size:20px}
+      .chip{gap:8px;padding:6px 10px;font-size:12px}
+      .dot{width:8px;height:8px}
+      .legend{gap:14px;margin-top:8px}.legend .item{gap:8px;font-size:12px}.swatch{width:12px;height:12px}
+      .stack{height:32px}.seg{font-size:12px}
+      .gauge{height:12px}
+    }
+    
+    /* Desktop screens (1200px+) */
+    @media (min-width: 1200px) {
+      .span-6,.span-8{grid-column:span 12}
+      .span-3{grid-column:span 3}.span-4{grid-column:span 4}
+    }
+
+    /* Financial Overview bar chart */
+    .bar-chart{display:grid;gap:10px}
+    .bar{display:flex;align-items:center;gap:10px}
+    .bar-label{width:140px;font-weight:600}
+    .bar-track{flex:1;height:28px;background:#e2e8f0;border-radius:8px;overflow:hidden;position:relative;border:1px solid var(--border)} @media (prefers-color-scheme: dark){.bar-track{background:#0f172a}}
+    .bar-fill{height:100%;border-radius:8px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;color:#fff;font-size:13px;font-weight:600}
+    /* Updated bar fill colors to match user's request */
+    .bar-fill.rev{background:var(--rev)} .bar-fill.opex{background:var(--opex)} .bar-fill.net{background:var(--net)} .bar-fill.net.neg{background:var(--net-neg)} .bar-fill.tax{background:var(--tax)} .bar-fill.rei{background:var(--reinvest)} .bar-fill.dist{background:var(--dist)}
+
+    /* Tiny info tooltip */
+    .info{display:inline-flex;width:18px;height:18px;border-radius:50%;align-items:center;justify-content:center;background:rgba(37, 99, 235, 0.2);color:var(--accent);font-size:12px;cursor:help;position:relative}
+    .info .tip{position:absolute;left:50%;top:120%;transform:translateX(-50%);min-width:220px;max-width:320px;background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow);padding:10px;border-radius:10px;color:var(--text);opacity:0;pointer-events:none;transition:.12s;z-index:10}
+    .info:hover .tip{opacity:1}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px}
+
+    /* Styles for print mode */
+    @media print{
+      body{
+        /* Center the content for print */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+      /* Hide the left panel and set the grid to display as a block */
+      .app{
+        display:block
+      }
+      aside.panel, .panel-toggle{
+        display:none!important;
+      }
+      /* The content section will now take up the full page width */
+      section.content{
+        width: 100%;
+      }
+      /* Hide buttons, switches, and range inputs for a clean printout */
+      .btns,.switch,input[type=range]{
+        display:none!important
+      }
+      /* Ensure the group borders are solid for printing */
+      .group{
+        border:1px solid var(--border)
+      }
+      /* Set the print page size to A4 landscape with a 10mm margin */
+      @page{
+        size:A4 landscape;
+        margin:10mm
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <button class="panel-toggle" id="panelToggleBtn"></button>
+    <aside class="panel" id="sidebarPanel">
+      <div class="brand"><span class="dot"></span><h1>Café Finance Framework (MYR)</h1></div>
+      <p class="sub">Live calculator for monthly performance. All values are monthly unless stated.</p>
+      <div class="group">
+        <h2>Business Inputs</h2>
+        <!-- Added slider for Estimated Revenue -->
+        <label class="row">Estimated Revenue (MYR)
+          <div class="row-inputs">
+            <input id="revenue" type="number" min="0" step="100" value="60000" />
+            <input id="revenueRange" type="range" min="0" max="200000" step="100" value="60000" />
+          </div>
+          <small>Projected gross monthly sales.</small>
+        </label>
+        <!-- Added slider for Monthly OPEX -->
+        <label class="row">Monthly OPEX (MYR)
+          <div class="row-inputs">
+            <input id="opex" type="number" min="0" step="100" value="40000" />
+            <input id="opexRange" type="range" min="0" max="100000" step="100" value="40000" />
+          </div>
+          <small>All operating expenses (rent, payroll, utilities, etc.).</small>
+        </label>
+        <!-- Added slider for Cash on Hand -->
+        <label class="row">Cash on Hand (MYR)
+          <div class="row-inputs">
+            <input id="cash" type="number" min="0" step="100" value="80000" />
+            <input id="cashRange" type="range" min="0" max="200000" step="100" value="80000" />
+          </div>
+          <small>Available cash. Used to compute runway/emergency: <em>Cash ÷ OPEX</em>.</small>
+        </label>
+      </div>
+      <div class="group">
+        <h2>Policy</h2>
+        <label class="row">Reinvestment %
+          <input id="reinvestPct" type="number" min="0" max="100" step="1" value="20" />
+          <small>Percentage of profit (after tax) to put back into the business.</small>
+        </label>
+        <label class="row">Income Tax %
+          <span style="display:flex; gap:8px; align-items:center;">
+            <label class="switch" title="Toggle tax on/off">
+              <input id="taxEnable" type="checkbox" checked>
+              <span class="track"><span class="thumb"></span></span>
+            </label>
+            <input id="taxPct" type="number" min="0" max="30" step="0.1" value="17" title="Tax %" />
+          </span>
+          <small>Applied only when profit is positive.</small>
+        </label>
+        <label class="row">Reserve Target (months)
+          <input id="reserve" type="number" min="0" step="0.5" value="3" />
+          <small>Minimum cash runway to allow distributions.</small>
+        </label>
+        <label class="row">Auto‑pause Dividends
+          <label class="switch" title="Prevent distributions when runway < target">
+            <input id="autopause" type="checkbox" checked>
+            <span class="track"><span class="thumb"></span></span>
+          </label>
+          <small>When active and runway is short, distributions are set to MYR 0.</small>
+        </label>
+      </div>
+      <div class="group">
+        <h2>Founders' Distribution (%)</h2>
+        <div class="founder-grid">
+          <div class="name">Founder 1</div>
+          <input id="f1Num" type="number" min="0" max="100" step="1" value="35">
+          <input id="f1" type="range" min="0" max="100" step="1" value="35" data-index="0">
+          <div class="name">Founder 2</div>
+          <input id="f2Num" type="number" min="0" max="100" step="1" value="35">
+          <input id="f2" type="range" min="0" max="100" step="1" value="35" data-index="1">
+          <div class="name">Founder 3</div>
+          <input id="f3Num" type="number" min="0" max="100" step="1" value="30">
+          <input id="f3" type="range" min="0" max="100" step="1" value="30" data-index="2">
+        </div>
+        <div class="total"><span>Total must be <strong>100%</strong>.</span><span id="totalPct">100%</span></div>
+      </div>
+      <div class="btns">
+        <button class="icon" id="resetBtn" title="Reset to defaults">↺ Reset</button>
+        <button class="icon primary" id="exportBtn" title="Export as PNG">🡇 Export PNG</button>
+        <button class="icon" id="csvBtn" title="Export a CSV snapshot of current inputs & outputs">⬇︎ Export CSV</button>
+      </div>
+    </aside>
+
+    <section class="content" id="content-to-capture">
+      <div class="grid">
+        <!-- Rearranged KPI Cards to match the requested order -->
+        <div class="card kpi" style="border-left:5px solid var(--rev)">
+          <div class="label">Revenue</div>
+          <div class="value" id="outRevenue">–</div>
+          <div class="muted">Projected gross sales.</div>
+        </div>
+        <div class="card kpi" style="border-left:5px solid var(--opex)">
+          <div class="label">OPEX</div>
+          <div class="value" id="outOpex">–</div>
+          <div class="muted">Operating costs.</div>
+        </div>
+        <!-- Net Profit KPI card with dynamic color -->
+        <div class="card kpi" id="netProfitCard">
+          <div class="label">Net Profit <span class="info"><span>i</span><span class="tip"><strong>Formula</strong><br><span class="mono">net = revenue − opex</span></span></span></div>
+          <div class="value" id="outNet">–</div>
+          <div class="muted" id="netNote">Revenue − OPEX.</div>
+        </div>
+        <div class="card kpi" style="border-left:5px solid var(--tax)">
+          <div class="label">Income Tax <span class="info" aria-label="formula"><span>i</span><span class="tip"><strong>Formula</strong><br><span class="mono">tax = max(0, net) × tax%</span><br>Only when tax is enabled.</span></span></div>
+          <div class="value" id="outTax">–</div>
+          <div class="muted" id="taxLabel">Based on positive profit.</div>
+        </div>
+        <div class="card kpi span-4" style="border-left:5px solid var(--reinvest)">
+          <div class="label">Reinvestment <span class="info" aria-label="formula"><span>i</span><span class="tip"><strong>Formula</strong><br><span class="mono">reinvestment = max(0, net − tax) × reinvest%</span></span></span></div>
+          <div class="value" id="outReinvest">–</div>
+          <div class="muted" id="reinLabel">% of profit after tax.</div>
+        </div>
+        <div class="card kpi span-4" style="border-left:5px solid var(--dist)">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div class="label">Distributable Profit <span class="info"><span>i</span><span class="tip"><strong>Formula</strong><br><span class="mono">dist = max(0, net − tax − reinvest)</span><br>Set to 0 if dividends are paused.</span></span></div>
+              <div class="value" id="outDist">–</div>
+            </div>
+            <span id="statusChip" class="chip ok"><span class="dot"></span> <span id="statusText">OK</span></span>
+          </div>
+          <div class="muted">After tax and reinvestment; set to MYR 0 when dividends are paused.</div>
+        </div>
+
+        <div class="card span-4">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="font-weight:700;display:flex;align-items:center;gap:8px;">Runway <span class="info"><span>i</span><span class="tip"><span><strong>Formula</strong><br><span class="mono">runway (months) = cash ÷ opex</span><br><span class="mono">status = paused if runway < reserveTarget AND autopause</span></span></span></div>
+            <div id="runwayNums" class="muted">–</div>
+          </div>
+          <div class="gauge" aria-label="Runway vs Target">
+            <div id="gaugeFill" class="fill" style="width:0%"></div>
+          </div>
+          <div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;" class="legend">
+            <div class="item"><span class="swatch" style="background:var(--ok)"></span><span>Runway/Target</span></div>
+            <div class="item"><span class="swatch" style="background:var(--paused)"></span><span>Below Target</span></div>
+          </div>
+        </div>
+        <!-- Financial Overview Bar Chart -->
+        <div class="card span-8">
+          <div style="font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px;">Financial Overview <span class="info"><span>i</span><span class="tip"><strong>Notes</strong><br>Bars auto-scale to the largest absolute value among Revenue, OPEX, Net, Tax, Reinvest.</span></span></div>
+          <div class="bar-chart">
+            <div class="bar"><div class="bar-label">Revenue</div><div class="bar-track"><div id="barRev" class="bar-fill rev" style="width:0%">MYR 0</div></div></div>
+            <div class="bar"><div class="bar-label">OPEX</div><div class="bar-track"><div id="barOpex" class="bar-fill opex" style="width:0%">MYR 0</div></div></div>
+            <!-- Bar for Net Profit with dynamic color class -->
+            <div class="bar"><div class="bar-label">Net Profit</div><div class="bar-track"><div id="barNet" class="bar-fill net" style="width:0%">MYR 0</div></div></div>
+            <div class="bar"><div class="bar-label">Income Tax</div><div class="bar-track"><div id="barTax" class="bar-fill tax" style="width:0%">MYR 0</div></div></div>
+            <div class="bar"><div class="bar-label">Reinvest</div><div class="bar-track"><div id="barRei" class="bar-fill rei" style="width:0%">MYR 0</div></div></div>
+            <div class="bar"><div class="bar-label">Distributable Profit</div><div class="bar-track"><div id="barDist" class="bar-fill dist" style="width:0%">MYR 0</div></div></div>
+          </div>
+          <div class="legend" style="margin-top:20px;">
+            <div class="item"><span class="swatch" style="background:var(--rev)"></span> Revenue</div>
+            <div class="item"><span class="swatch" style="background:var(--opex)"></span> OPEX</div>
+            <div class="item"><span class="swatch" style="background:var(--net)"></span> Net Profit</div>
+            <div class="item"><span class="swatch" style="background:var(--tax)"></span> Income Tax</div>
+            <div class="item"><span class="swatch" style="background:var(--reinvest)"></span> Reinvestment</div>
+            <div class="item"><span class="swatch" style="background:var(--dist)"></span> Distributable Profit</div>
+          </div>
+        </div>
+        <!-- Distribution Donut Chart -->
+        <div class="card span-6">
+          <div style="font-weight:700;margin-bottom:8px;">Founders' Distribution</div>
+          <div class="donut-wrap">
+            <svg class="donut" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <filter id="shadow">
+                  <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="var(--shadow)" flood-opacity="0.2"/>
+                </filter>
+              </defs>
+              <!-- Background track -->
+              <circle r="80" cx="110" cy="110" fill="transparent" stroke="#e2e8f0" stroke-width="30"/>
+              <!-- Donut slices will be added here via JS -->
+              <g id="donutSlices"></g>
+              <text id="donutCenterText" x="110" y="110" class="center-text">100%</text>
+            </svg>
+            <div class="legend">
+              <div class="item"><span class="swatch" style="background:var(--f1)"></span> Founder 1 (<span id="f1OutPct">0</span>%)</div>
+              <div class="item"><span class="swatch" style="background:var(--f2)"></span> Founder 2 (<span id="f2OutPct">0</span>%)</div>
+              <div class="item"><span class="swatch" style="background:var(--f3)"></span> Founder 3 (<span id="f3OutPct">0</span>%)</div>
+              <div class="item"><span class="swatch" style="background:var(--muted)"></span> Undistributed (<span id="undistOutPct">0</span>%)</div>
+            </div>
+          </div>
+        </div>
+        <!-- Founder Distributions Table -->
+        <div class="card span-6">
+          <div style="font-weight:700;margin-bottom:8px;">Monthly Distributions (MYR)</div>
+          <div style="font-weight:600;font-size:12px;display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px;">
+            <span>Founder</span>
+            <span>Payout</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;padding:8px 0;" id="payoutsList">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
+              <span style="display:flex;align-items:center;gap:8px;"><span class="dot" style="background:var(--f1)"></span>Founder 1</span>
+              <strong id="f1Out">MYR 0.00</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
+              <span style="display:flex;align-items:center;gap:8px;"><span class="dot" style="background:var(--f2)"></span>Founder 2</span>
+              <strong id="f2Out">MYR 0.00</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
+              <span style="display:flex;align-items:center;gap:8px;"><span class="dot" style="background:var(--f3)"></span>Founder 3</span>
+              <strong id="f3Out">MYR 0.00</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
+              <span style="display:flex;align-items:center;gap:8px;color:var(--muted);">Undistributed</span>
+              <strong id="undistOut">MYR 0.00</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const inputs = {
+        revenue: document.getElementById('revenue'),
+        revenueRange: document.getElementById('revenueRange'),
+        opex: document.getElementById('opex'),
+        opexRange: document.getElementById('opexRange'),
+        cash: document.getElementById('cash'),
+        cashRange: document.getElementById('cashRange'),
+        reinvestPct: document.getElementById('reinvestPct'),
+        taxEnable: document.getElementById('taxEnable'),
+        taxPct: document.getElementById('taxPct'),
+        reserve: document.getElementById('reserve'),
+        autopause: document.getElementById('autopause'),
+        f1Num: document.getElementById('f1Num'),
+        f1: document.getElementById('f1'),
+        f2Num: document.getElementById('f2Num'),
+        f2: document.getElementById('f2'),
+        f3Num: document.getElementById('f3Num'),
+        f3: document.getElementById('f3')
+      };
+
+      const outputs = {
+        outRevenue: document.getElementById('outRevenue'),
+        outOpex: document.getElementById('outOpex'),
+        outNet: document.getElementById('outNet'),
+        netProfitCard: document.getElementById('netProfitCard'),
+        netNote: document.getElementById('netNote'),
+        outTax: document.getElementById('outTax'),
+        taxLabel: document.getElementById('taxLabel'),
+        outReinvest: document.getElementById('outReinvest'),
+        reinLabel: document.getElementById('reinLabel'),
+        outDist: document.getElementById('outDist'),
+        statusChip: document.getElementById('statusChip'),
+        statusText: document.getElementById('statusText'),
+        runwayNums: document.getElementById('runwayNums'),
+        gaugeFill: document.getElementById('gaugeFill'),
+        barRev: document.getElementById('barRev'),
+        barOpex: document.getElementById('barOpex'),
+        barNet: document.getElementById('barNet'),
+        barTax: document.getElementById('barTax'),
+        barRei: document.getElementById('barRei'),
+        barDist: document.getElementById('barDist'),
+        donutSlices: document.getElementById('donutSlices'),
+        donutCenterText: document.getElementById('donutCenterText'),
+        f1Out: document.getElementById('f1Out'),
+        f2Out: document.getElementById('f2Out'),
+        f3Out: document.getElementById('f3Out'),
+        f1OutPct: document.getElementById('f1OutPct'),
+        f2OutPct: document.getElementById('f2OutPct'),
+        f3OutPct: document.getElementById('f3OutPct'),
+        undistOut: document.getElementById('undistOut'),
+        undistOutPct: document.getElementById('undistOutPct'),
+        totalPct: document.getElementById('totalPct')
+      };
+
+      // Initial values from HTML
+      let revenue = parseFloat(inputs.revenue.value);
+      let opex = parseFloat(inputs.opex.value);
+      let cash = parseFloat(inputs.cash.value);
+      let reinvestPct = parseFloat(inputs.reinvestPct.value) / 100;
+      let taxEnable = inputs.taxEnable.checked;
+      let taxPct = parseFloat(inputs.taxPct.value) / 100;
+      let reserve = parseFloat(inputs.reserve.value);
+      let autopause = inputs.autopause.checked;
+      const founderRanges = [inputs.f1, inputs.f2, inputs.f3];
+      const founderNums = [inputs.f1Num, inputs.f2Num, inputs.f3Num];
+      const payoutOutputs = [outputs.f1Out, outputs.f2Out, outputs.f3Out];
+      const pctOutputs = [outputs.f1OutPct, outputs.f2OutPct, outputs.f3OutPct];
+      let founderPcts = founderRanges.map(r => parseFloat(r.value));
+
+      function formatMYR(value) {
+          const formatted = new Intl.NumberFormat('en-MY', {
+              style: 'currency',
+              currency: 'MYR',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+          }).format(value);
+          // Remove trailing .00 if it's an integer
+          return formatted.endsWith('.00') ? formatted.slice(0, -3) : formatted;
+      }
+
+      function updateUI() {
+          // --- Main Calculations ---
+          const netProfit = revenue - opex;
+          let tax = 0;
+          if (taxEnable && netProfit > 0) {
+              tax = netProfit * taxPct;
+          }
+          const profitAfterTax = netProfit - tax;
+          const reinvestment = Math.max(0, profitAfterTax * reinvestPct);
+
+          const runwayMonths = opex > 0 ? cash / opex : 0;
+          const isBelowTarget = autopause && (runwayMonths < reserve);
+
+          let distributableProfit = Math.max(0, profitAfterTax - reinvestment);
+          if (isBelowTarget) {
+              distributableProfit = 0;
+          }
+
+          const totalFounderPct = founderPcts.reduce((sum, pct) => sum + pct, 0);
+          const undistributed = (100 - totalFounderPct) / 100;
+          const totalDistributions = distributableProfit;
+
+          let payouts = founderPcts.map(pct => (pct / 100) * totalDistributions);
+          const undistributedPayout = undistributed * totalDistributions;
+
+          // --- Update UI ---
+          outputs.outRevenue.textContent = formatMYR(revenue);
+          outputs.outOpex.textContent = formatMYR(opex);
+
+          outputs.outNet.textContent = formatMYR(netProfit);
+          outputs.netProfitCard.style.borderLeft = `5px solid ${netProfit >= 0 ? 'var(--net)' : 'var(--net-neg)'}`;
+          outputs.netNote.textContent = netProfit >= 0 ? "Revenue − OPEX." : "Business is in the red.";
+
+          outputs.outTax.textContent = formatMYR(tax);
+          outputs.taxLabel.textContent = taxEnable ? `Based on positive profit.` : "Tax is currently disabled.";
+          
+          outputs.outReinvest.textContent = formatMYR(reinvestment);
+          outputs.reinLabel.textContent = `${(reinvestPct * 100).toFixed(0)}% of profit after tax.`;
+
+          outputs.outDist.textContent = formatMYR(distributableProfit);
+          outputs.statusChip.classList.toggle('ok', !isBelowTarget);
+          outputs.statusChip.classList.toggle('paused', isBelowTarget);
+          outputs.statusText.textContent = isBelowTarget ? "Paused" : "OK";
+
+          outputs.runwayNums.textContent = `${runwayMonths.toFixed(1)} months / ${reserve.toFixed(1)} target`;
+          outputs.gaugeFill.style.width = `${Math.min(100, (runwayMonths / reserve) * 100)}%`;
+          outputs.gaugeFill.classList.toggle('alert', isBelowTarget);
+
+          // Bar chart
+          const barValues = [revenue, opex, netProfit, tax, reinvestment, distributableProfit];
+          const maxAbsValue = Math.max(...barValues.map(Math.abs));
+          const totalWidth = maxAbsValue > 0 ? 100 : 0;
+
+          const updateBar = (bar, value, isNegative = false) => {
+              const width = totalWidth > 0 ? (Math.abs(value) / maxAbsValue) * 100 : 0;
+              bar.style.width = `${width}%`;
+              bar.textContent = formatMYR(value);
+              bar.classList.toggle('neg', isNegative);
+          };
+
+          updateBar(outputs.barRev, revenue);
+          updateBar(outputs.barOpex, opex);
+          updateBar(outputs.barNet, netProfit, netProfit < 0);
+          updateBar(outputs.barTax, tax);
+          updateBar(outputs.barRei, reinvestment);
+          updateBar(outputs.barDist, distributableProfit);
+
+          // Donut chart
+          outputs.donutSlices.innerHTML = '';
+          const donutRadius = 80;
+          const donutStrokeWidth = 30;
+          const circumference = 2 * Math.PI * donutRadius;
+          let offset = 0;
+
+          const donutData = [
+              { value: founderPcts[0], color: 'var(--f1)' },
+              { value: founderPcts[1], color: 'var(--f2)' },
+              { value: founderPcts[2], color: 'var(--f3)' },
+              { value: undistributed * 100, color: 'var(--muted)' }
+          ];
+
+          donutData.forEach(slice => {
+              if (slice.value > 0) {
+                  const sliceLength = (slice.value / 100) * circumference;
+                  const slicePath = `
+                      <circle
+                          r="${donutRadius}"
+                          cx="110" cy="110"
+                          fill="transparent"
+                          stroke="${slice.color}"
+                          stroke-width="${donutStrokeWidth}"
+                          stroke-dasharray="${sliceLength} ${circumference - sliceLength}"
+                          stroke-dashoffset="${-offset}"
+                          style="filter: url(#shadow);"
+                      />
+                  `;
+                  outputs.donutSlices.innerHTML += slicePath;
+                  offset += sliceLength;
+              }
+          });
+
+          outputs.donutCenterText.textContent = `${totalFounderPct.toFixed(0)}%`;
+          outputs.totalPct.textContent = `${totalFounderPct.toFixed(0)}%`;
+
+          // Payouts
+          payouts.forEach((payout, index) => {
+              payoutOutputs[index].textContent = formatMYR(payout);
+              pctOutputs[index].textContent = founderPcts[index];
+          });
+          outputs.undistOut.textContent = formatMYR(undistributedPayout);
+          outputs.undistOutPct.textContent = (undistributed * 100).toFixed(0);
+      }
+
+      // Event listeners
+      Object.values(inputs).forEach(input => {
+          input.addEventListener('input', update);
+      });
+
+      function update(event) {
+          const { id, value, type } = event.target;
+          if (type === 'range') {
+              const numInput = document.getElementById(id.replace('Range', ''));
+              if (numInput) numInput.value = value;
+          } else if (id.endsWith('Num')) {
+              const rangeInput = document.getElementById(id.replace('Num', ''));
+              if (rangeInput) rangeInput.value = value;
+          }
+
+          if (id.startsWith('f')) {
+              founderPcts = founderRanges.map(r => parseFloat(r.value));
+              const total = founderPcts.reduce((sum, p) => sum + p, 0);
+              if (total !== 100) {
+                  const lastIndex = parseInt(event.target.dataset.index);
+                  const newTotal = founderPcts.filter((_, i) => i !== lastIndex).reduce((sum, p) => sum + p, 0);
+                  const remaining = Math.max(0, 100 - newTotal);
+                  founderPcts[lastIndex] = remaining;
+                  founderRanges[lastIndex].value = remaining;
+                  founderNums[lastIndex].value = remaining;
+              }
+          }
+
+          revenue = parseFloat(inputs.revenue.value);
+          opex = parseFloat(inputs.opex.value);
+          cash = parseFloat(inputs.cash.value);
+          reinvestPct = parseFloat(inputs.reinvestPct.value) / 100;
+          taxEnable = inputs.taxEnable.checked;
+          taxPct = parseFloat(inputs.taxPct.value) / 100;
+          reserve = parseFloat(inputs.reserve.value);
+          autopause = inputs.autopause.checked;
+
+          updateUI();
+      }
+
+      // Initial update
+      updateUI();
+      
+      // Toggle button functionality
+      const panelToggleBtn = document.getElementById('panelToggleBtn');
+      const sidebarPanel = document.getElementById('sidebarPanel');
+      panelToggleBtn.addEventListener('click', () => {
+          sidebarPanel.classList.toggle('hidden');
+          panelToggleBtn.classList.toggle('active');
+      });
+
+      // Export PNG functionality
+      document.getElementById('exportBtn').addEventListener('click', async () => {
+        const node = document.getElementById('content-to-capture');
+        try {
+          const scale = 2; // Increased scale for higher resolution
+          const options = {
+            width: node.offsetWidth * scale,
+            height: node.offsetHeight * scale,
+            style: {
+              transform: 'scale(' + scale + ')',
+              transformOrigin: 'top left',
+              width: node.offsetWidth + 'px',
+              height: node.offsetHeight + 'px'
+            }
+          };
+          const canvas = await html2canvas(node, options);
+          const link = document.createElement('a');
+          link.href = canvas.toDataURL('image/png');
+          link.download = `cafe_finance_snapshot_${new Date().toISOString().slice(0,10)}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } catch (error) {
+          console.error("Error generating PNG:", error);
+        }
+      });
+      // Load html2canvas script
+      const script = document.createElement('script');
+      script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+      document.head.appendChild(script);
+
+      // Export CSV functionality
+      document.getElementById('csvBtn').addEventListener('click', () => {
+        const date = new Date();
+        const runwayMonths = opex > 0 ? cash / opex : 0;
+        const totalFounderPct = founderPcts.reduce((sum, p) => sum + p, 0);
+        const undistributed = (100 - totalFounderPct) / 100;
+        const netProfit = revenue - opex;
+        let tax = 0;
+        if (inputs.taxEnable.checked && netProfit > 0) {
+            tax = netProfit * (parseFloat(inputs.taxPct.value) / 100);
+        }
+        const profitAfterTax = netProfit - tax;
+        const reinvestment = Math.max(0, profitAfterTax * (parseFloat(inputs.reinvestPct.value) / 100));
+        const distributableProfit = Math.max(0, profitAfterTax - reinvestment);
+        const totalDistributions = distributableProfit;
+        const payouts = founderPcts.map(pct => (pct / 100) * totalDistributions);
+
+        const csvRows = [
+            ['"Metric"', '"Value"'],
+            ['"Date"', date.toISOString()],
+            ['"Revenue (MYR)"', revenue],
+            ['"OPEX (MYR)"', opex],
+            ['"Net Profit (MYR)"', netProfit],
+            ['"Income Tax (MYR)"', tax],
+            ['"Reinvestment (MYR)"', reinvestment],
+            ['"Distributable Profit (MYR)"', distributableProfit],
+            ['"Founder 1 Pct (%)"', founderPcts[0]],
+            ['"Founder 2 Pct (%)"', founderPcts[1]],
+            ['"Founder 3 Pct (%)"', founderPcts[2]],
+            ['"Undistributed Pct (%)"', undistributed * 100],
+            ['"Cash on Hand (MYR)"', cash],
+            ['"Runway (Months)"', runwayMonths],
+            ['"Runway Status"', runwayMonths < parseFloat(inputs.reserve.value) ? 'Below Target' : 'OK'],
+            ['"Founder 1 Payout (MYR)"', payouts[0]],
+            ['"Founder 2 Payout (MYR)"', payouts[1]],
+            ['"Founder 3 Payout (MYR)"', payouts[2]],
+            ['"Undistributed Payout (MYR)"', undistributed * totalDistributions],
+        ];
+        const csv = csvRows.map(r=>r.join(',')).join('\n');
+        const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url; a.download=`cafe_finance_snapshot_${date.toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+      });
+      
+      // Reset button functionality
+      document.getElementById('resetBtn').addEventListener('click', () => {
+          // Hardcoded initial values
+          inputs.revenue.value = 60000;
+          inputs.opex.value = 40000;
+          inputs.cash.value = 80000;
+          inputs.reinvestPct.value = 20;
+          inputs.taxEnable.checked = true;
+          inputs.taxPct.value = 17;
+          inputs.reserve.value = 3;
+          inputs.autopause.checked = true;
+          inputs.f1Num.value = 35;
+          inputs.f2Num.value = 35;
+          inputs.f3Num.value = 30;
+          inputs.revenueRange.value = 60000;
+          inputs.opexRange.value = 40000;
+          inputs.cashRange.value = 80000;
+          founderPcts = [35, 35, 30];
+          updateUI();
+      });
+    });
+  </script>
+</body>
+</html>
